@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <math.h>
+#include <stdbool.h>
 
 #include "instantwm.h"
 #include "layouts.h"
@@ -122,28 +123,24 @@ void
 keyrelease(XEvent *e) {
 }
 
-int overlayexists() {
-	Client *c;
-	Monitor *m;
+bool 
+overlayexists() {
 	if (!selmon->overlay)
-		return 0;
+		return true;
 
-	for (m = mons; m; m = m->next) {
-		for(c = m->clients; c; c = c->next) {
+	for (Monitor *m = mons; m; m = m->next) {
+		for(Client * c = m->clients; c; c = c->next) {
 			if (c == m->overlay) {
-				return 1;
+				return true;
 			}
 		}
 	}
-
-	return 0;
+	return false;
 }
 
-void createdesktop(){
-	Client *c;
-	Monitor *m;
-	m = selmon;
-	for(c = m->clients; c; c = c->next) {
+void 
+createdesktop(){
+	for(Client *c = selmon->clients; c; c = c->next) {
 		if (strstr(c->name, "ROX-Filer") != NULL) {
 			if (c->w > drw->w - 100) {
 				focus(c);
@@ -157,23 +154,20 @@ void createdesktop(){
 void resetsnap(Client *c) {
     if (!c->snapstatus)
         return;
-    if (c->isfloating || NULL == selmon->lt[selmon->sellt]->arrange ) {
+    if (c->isfloating || NULL == selmon->lt[selmon->sellt]->arrange) {
         c->snapstatus = 0;
         c->bw = borderpx;
         restorefloating(c);
         applysize(c);
     }
-
 }
 
 
 void saveallfloating(Monitor *m) {
-    int i;
-    Client *c;
-    for (i = 1; i < 20; ++i) {
+    for (size_t i = 1; i < 20; ++i) {
         if (m->pertag->ltidxs[i][m->pertag->sellts[i]]->arrange != NULL)
             continue;
-        for(c = m->clients; c; c = c->next) {
+        for(Client *c = m->clients; c; c = c->next) {
             if (c->tags & (1 << (i - 1)) && c->snapstatus == 0)
                 savefloating(c);
         }
@@ -181,12 +175,10 @@ void saveallfloating(Monitor *m) {
 }
 
 void restoreallfloating(Monitor *m) {
-    int i;
-    Client *c;
-    for (i = 1; i < 20; ++i) {
+    for (size_t i = 1; i < 20; ++i) {
         if (m->pertag->ltidxs[i][m->pertag->sellts[i]]->arrange != NULL)
             continue;
-        for(c = m->clients; c; c = c->next) {
+        for(Client* c = m->clients; c; c = c->next) {
             if (c->tags & (1 << (i - 1)) && c->snapstatus == 0)
                 restorefloating(c);
         }
@@ -237,10 +229,8 @@ void applysnap(Client *c, Monitor *m) {
     }
 }
 
-int checkfloating(Client *c) {
-    if (c->isfloating || NULL == selmon->lt[selmon->sellt]->arrange )
-        return 1;
-    return 0;
+static inline bool checkfloating(Client *c) {
+    return (c->isfloating || NULL == selmon->lt[selmon->sellt]->arrange);
 }
 
 void changesnap(Client *c, int snapmode) {
@@ -270,53 +260,50 @@ void changesnap(Client *c, int snapmode) {
 
 void tempfullscreen() {
     if (selmon->fullscreen) {
-        Client *c;
-        c = selmon->fullscreen;
+        Client *c = selmon->fullscreen;
         if (c->isfloating || NULL == selmon->lt[selmon->sellt]->arrange) {
             restorefloating(c);
             applysize(c);
         }
         selmon->fullscreen = NULL;
-    } else {
-        if (!selmon->sel)
-            return;
+    } else if (!selmon->sel){
+				return;
+		} else {
         selmon->fullscreen = selmon->sel;
         if (selmon->sel->isfloating || NULL == selmon->lt[selmon->sellt]->arrange)
             savefloating(selmon->fullscreen);
     }
 
     if (animated) {
-        animated = 0;
-        arrange(selmon);
-        animated = 1;
+			animated = 0;
+			arrange(selmon);
+			animated = 1;
     } else {
         arrange(selmon);
     }
     if (selmon->fullscreen)
-        XRaiseWindow(dpy, selmon->fullscreen->win);
+			XRaiseWindow(dpy, selmon->fullscreen->win);
 }
 
 void
 createoverlay() {
-	Monitor *m;
-	Monitor *tm;
 	if (!selmon->sel)
 		return;
-    if (selmon->sel == selmon->fullscreen)
-        tempfullscreen();
-    if (selmon->sel == selmon->overlay) {
-		resetoverlay();
-		for (tm = mons; tm; tm = tm->next) {
-			tm->overlay = NULL;
-		}
-		return;
+	if (selmon->sel == selmon->fullscreen)
+		tempfullscreen();
+	if (selmon->sel == selmon->overlay) {
+	resetoverlay();
+	for (Monitor *tm = mons; tm; tm = tm->next) {
+		tm->overlay = NULL;
+	}
+	return;
 	}
 
 	Client *tempclient = selmon->sel;
 
 	resetoverlay();
 
-	for (m = mons; m; m = m->next) {
+	for (Monitor *m = mons; m; m = m->next) {
 		m->overlay = tempclient;
 		m->overlaystatus = 0;
 	}
@@ -327,12 +314,12 @@ createoverlay() {
 		changefloating(selmon->overlay);
 	}
 
-    if (selmon->overlaymode == 0 || selmon->overlaymode == 2)
-        selmon->overlay->h =((selmon->wh) / 3);
-    else
-        selmon->overlay->w = ((selmon->ww) / 3);
+	if (selmon->overlaymode == 0 || selmon->overlaymode == 2)
+		selmon->overlay->h =((selmon->wh) / 3);
+	else
+		selmon->overlay->w = ((selmon->ww) / 3);
 
-    XRaiseWindow(dpy,tempclient->win);
+	XRaiseWindow(dpy,tempclient->win);
 	showoverlay();
 }
 
@@ -347,20 +334,16 @@ resetoverlay() {
 	changefloating(selmon->overlay);
 	arrange(selmon);
 	focus(selmon->overlay);
-
 }
 
 double easeOutCubic( double t ) {
-    t--;
-    return 1 + t * t * t;
+	--t;
+	return 1.0 + t * t * t;
 }
 
 void checkanimate(Client *c, int x, int y, int w, int h, int frames, int resetpos) {
-    if (c->x == x && c->y == y && c->w == w && c->h == h) {
-        return;
-    } else {
-        animateclient(c, x, y, w, h, frames, resetpos);
-    }
+	if (c->x != x || c->y != y || c->w != w || c->h != h)
+		animateclient(c, x, y, w, h, frames, resetpos);
 }
 
 
@@ -370,8 +353,8 @@ void animateclient(Client *c, int x, int y, int w, int h, int frames, int resetp
 	int time;
 	int oldx, oldy;
 	int width, height;
-	width = w ? w : c->w;
-	height = h ? h : c->h;
+	width = w ?: c->w;
+	height = h ?: c->h;
 
 	// prevent oversizing when minimizing/unminimizing
 	if (width > selmon->mw - (2 * c->bw))
@@ -408,11 +391,9 @@ void animateclient(Client *c, int x, int y, int w, int h, int frames, int resetp
 
 void
 showoverlay() {
-	Monitor *m;
 	if (!overlayexists() || selmon->overlaystatus)
 		return;
-
-	for (m = mons; m; m = m->next) {
+	for (Monitor *m = mons; m; m = m->next) {
 		m->overlaystatus = 1;
 	}
 
@@ -420,34 +401,31 @@ showoverlay() {
 
 	detach(c);
 	detachstack(c);
-    c->mon = selmon;
+	c->mon = selmon;
 	attach(c);
 	attachstack(c);
-    selmon->overlay->isfloating = 1;
+	selmon->overlay->isfloating = 1;
 
 	if (c->islocked) {
-            switch (selmon->overlaymode) {
-            case 0:
-                resize(c, selmon->mx + 20, (selmon->showbar ? bh : 0) - c->h,
-                    selmon->ww - 40, c->h, True);
-                break;
-            case 1:
-                resize(c, selmon->mx + selmon->mw - 20, 40, c->w, selmon->mh - 80,
-                    True);
-              break;
-            case 2:
-                resize(c, selmon->mx + 20, selmon->my + selmon->mh,
-                    selmon->ww - 40, c->h, True);
-              break;
-            case 3:
-                resize(c, selmon->mx - c->w + 20, 40, c->w, selmon->mh - 80,
-                    True);
-              break;
-            default:
-                selmon->overlaymode = 0;
-              break;
-            }
-        }
+		switch (selmon->overlaymode) {
+		case 0:
+			resize(c, selmon->mx + 20, (selmon->showbar ? bh : 0) - c->h,
+				selmon->ww - 40, c->h, True);
+			break;
+		case 1:
+			resize(c, selmon->mx + selmon->mw - 20, 40, c->w, selmon->mh - 80, True);
+			break;
+		case 2:
+			resize(c, selmon->mx + 20, selmon->my + selmon->mh, selmon->ww - 40, c->h, True);
+			break;
+		case 3:
+			resize(c, selmon->mx - c->w + 20, 40, c->w, selmon->mh - 80, True);
+			break;
+		default:
+			selmon->overlaymode = 0;
+			break;
+		}
+	}
 
 	c->tags = selmon->tagset[selmon->seltags];
 
@@ -455,107 +433,93 @@ showoverlay() {
 		changefloating(selmon->overlay);
 	}
 
-
 	if (c->islocked)
 	{
 		XRaiseWindow(dpy, c->win);
-        switch (selmon->overlaymode) {
-            case 0:
-			    animateclient(c, c->x, ( selmon->showbar ? bh : 0 ), 0, 0, 15, 0);
-                break;
-            case 1:
-                animateclient(c, selmon->mx + selmon->mw - c->w, 40, 0, 0, 15, 0);
-                break;
-            case 2:
-                animateclient(c, selmon->mx + 20, selmon->my + selmon->mh - c->h, 0, 0, 15, 0);
-                break;
-            case 3:
-                animateclient(c, selmon->mx, 40, 0, 0, 15, 0);
-                break;
-            default:
-                selmon->overlaymode = 0;
-                break;
-        }
+		switch (selmon->overlaymode) {
+			case 0:
+				animateclient(c, c->x, ( selmon->showbar ? bh : 0 ), 0, 0, 15, 0);
+				break;
+			case 1:
+				animateclient(c, selmon->mx + selmon->mw - c->w, 40, 0, 0, 15, 0);
+				break;
+			case 2:
+				animateclient(c, selmon->mx + 20, selmon->my + selmon->mh - c->h, 0, 0, 15, 0);
+				break;
+			case 3:
+				animateclient(c, selmon->mx, 40, 0, 0, 15, 0);
+				break;
+			default:
+				selmon->overlaymode = 0;
+				break;
+		}
 		c->issticky = 1;
 	}
 
 	c->bw = 0;
-	/* arrange(selmon); */
 	focus(c);
 	XRaiseWindow(dpy, c->win);
 }
 
 void
 hideoverlay() {
-    if (!overlayexists() || !selmon->overlaystatus)
-        return;
+	if (!overlayexists() || !selmon->overlaystatus)
+		return;
 
-    Client *c;
-	Monitor *m;
-	c = selmon->overlay;
+	Client *c = selmon->overlay;
 	c->issticky = 0;
-    if (c == selmon->fullscreen)
-        tempfullscreen();
-    if (c->islocked) {
-        switch (selmon->overlaymode) {
-        case 0:
-		    animateclient(c, c->x, 0 - c->h, 0, 0, 15, 0);
-            break;
-        case 1:
-		    animateclient(c, selmon->mx + selmon->mw, selmon->mx + selmon->mw, 0, 0, 15, 0);
-            break;
-        case 2:
-		    animateclient(c, c->x, selmon->mh + selmon->my, 0, 0, 15, 0);
-            break;
-        case 3:
-		    animateclient(c, selmon->mx - c->w, 40, 0, 0, 15, 0);
-            break;
-        default:
-            selmon->overlaymode = 0;
-            break;
-        }
-    }
+	if (c == selmon->fullscreen)
+		tempfullscreen();
+	if (c->islocked) {
+		switch (selmon->overlaymode) {
+			case 0:
+			animateclient(c, c->x, 0 - c->h, 0, 0, 15, 0);
+				break;
+			case 1:
+			animateclient(c, selmon->mx + selmon->mw, selmon->mx + selmon->mw, 0, 0, 15, 0);
+				break;
+			case 2:
+			animateclient(c, c->x, selmon->mh + selmon->my, 0, 0, 15, 0);
+				break;
+			case 3:
+			animateclient(c, selmon->mx - c->w, 40, 0, 0, 15, 0);
+				break;
+			default:
+				selmon->overlaymode = 0;
+				break;
+		}
+	}
 
-	for (m = mons; m; m = m->next) {
+	for (Monitor *m = mons; m; m = m->next) {
 		m->overlaystatus = 0;
 	}
 
 	selmon->overlay->tags = 0;
 	focus(NULL);
 	arrange(selmon);
-
 }
 
 void
 setoverlay() {
-
 	if (!overlayexists()) {
-		return;
-	}
-
-	if (!selmon->overlaystatus) {
+	} else if (!selmon->overlaystatus) {
 		showoverlay();
+	} else if (ISVISIBLE(selmon->overlay)) {
+		hideoverlay();
 	} else {
-		if (ISVISIBLE(selmon->overlay)) {
-			hideoverlay();
-		} else {
-			showoverlay();
-		}
+		showoverlay();
 	}
 }
 
 void focuslastclient(const Arg *arg) {
-	Client *c;
-
 	if (!lastclient)
 		return;
 
-	c = lastclient;
-
-    if (c->tags & 1 << 20) {
-        togglescratchpad(NULL);
-        return;
-    }
+	Client *c = lastclient;
+	if (c->tags & 1 << 20) {
+		togglescratchpad(NULL);
+		return;
+	}
 
 	const Arg a = {.ui = c->tags};
 	if (selmon != c->mon) {
@@ -586,85 +550,82 @@ void
 applyrules(Client *c)
 {
 	const char *class, *instance;
-	Monitor *m;
 	XClassHint ch = { NULL, NULL };
 
 	/* rule matching */
 	c->isfloating = 0;
 	c->tags = 0;
 	XGetClassHint(dpy, c->win, &ch);
-	class    = ch.res_class ? ch.res_class : broken;
-	instance = ch.res_name  ? ch.res_name  : broken;
+	class    = ch.res_class ?: broken;
+	instance = ch.res_name  ?: broken;
 
-    if (specialnext) {
-        switch (specialnext) {
-            case 1:
-                c->isfloating = 1;
-                break;
-        }
-        specialnext = 0;
-    } else {
-        unsigned int i;
-        const Rule *r;
-        for (i = 0; i < LENGTH(rules); i++) {
-            r = &rules[i];
-            if ((!r->title || strstr(c->name, r->title))
-            && (!r->class || strstr(class, r->class))
-            && (!r->instance || strstr(instance, r->instance)))
-            {
-                if (strstr(r->class, "ROX-Filer") != NULL) {
-                    desktopicons = 1;
-                    newdesktop = 1;
-                }
+	if (specialnext) {
+		switch (specialnext) {
+			case 1:
+				c->isfloating = 1;
+				break;
+		}
+		specialnext = 0;
+	} else {
+		for (size_t i = 0; i < LENGTH(rules); ++i) {
+			const Rule *r = &rules[i];
+			if ((!r->title || strstr(c->name, r->title))
+			&& (!r->class || strstr(class, r->class))
+			&& (!r->instance || strstr(instance, r->instance))){
+				if (strstr(r->class, "ROX-Filer") != NULL) {
+					desktopicons = 1;
+					newdesktop = 1;
+				}
 
-                if (strstr(r->class, "Onboard") != NULL) {
-                    c->issticky=1;
-                }
+				if (strstr(r->class, "Onboard") != NULL) {
+					c->issticky=1;
+				}
 
-                switch (r->isfloating) {
-                    case 2:
-                        selmon->sel = c;
-                        c->isfloating = 1;
-                        centerwindow();
-                        break;;
-                    case 3:
-                        // fullscreen overlay
-                        selmon->sel = c;
-                        c->isfloating = 1;
-                        c->w = c->mon->mw;
-                        c->h = c->mon->wh - ( selmon->showbar ? bh : 0 );
-                        if (selmon->showbar)
-                            c->y = selmon->my + bh;
-                        c->x = selmon->mx;
-                        break;;
-                    case 4:
-                        selmon->sel = c;
-                        c->tags = 1 << 20;
-                        selmon->scratchvisible = 1;
-                        c->issticky = 1;
-                        c->isfloating = 1;
-                        centerwindow();
-                        break;;
-                    case 1:
-                        c->isfloating = 1;
-                        break;;
-                    case 0:
-                        c->isfloating = 0;
-                        break;;
-                }
+				switch (r->isfloating) {
+					case 2:
+						selmon->sel = c;
+						c->isfloating = 1;
+						centerwindow();
+						break;
+					case 3:
+						// fullscreen overlay
+						selmon->sel = c;
+						c->isfloating = 1;
+						c->w = c->mon->mw;
+						c->h = c->mon->wh - ( selmon->showbar ? bh : 0 );
+						if (selmon->showbar)
+							c->y = selmon->my + bh;
+						c->x = selmon->mx;
+						break;
+					case 4:
+						selmon->sel = c;
+						c->tags = 1 << 20;
+						selmon->scratchvisible = 1;
+						c->issticky = 1;
+						c->isfloating = 1;
+						centerwindow();
+						break;
+					case 1:
+						c->isfloating = 1;
+						break;
+					case 0:
+						c->isfloating = 0;
+						break;
+				}
 
-                c->tags |= r->tags;
-                for (m = mons; m && m->num != r->monitor; m = m->next);
-                if (m)
-                    c->mon = m;
-            }
-        }
-    }
+				c->tags |= r->tags;
+				Monitor *m = mons;
+				while(m && m->num != r->monitor) m = m->next;
+				if (m)
+					c->mon = m;
+			}
+		}
+	}
 	if (ch.res_class)
 		XFree(ch.res_class);
 	if (ch.res_name)
 		XFree(ch.res_name);
-	c->tags = c->tags & TAGMASK ? c->tags & TAGMASK : c->mon->tagset[c->mon->seltags];
+	c->tags = (c->tags & TAGMASK) ?: c->mon->tagset[c->mon->seltags];
 }
 
 int
@@ -870,16 +831,17 @@ buttonpress(XEvent *e)
 	} else if (ev->x > selmon->mx + selmon->mw - 50) {
 		click = ClkSideBar;
 	}
-	for (i = 0; i < LENGTH(buttons); i++)
+	for (i = 0; i < LENGTH(buttons); ++i)
 		if (click == buttons[i].click && buttons[i].func && buttons[i].button == ev->button
 		&& CLEANMASK(buttons[i].mask) == CLEANMASK(ev->state))
-                  buttons[i].func((click == ClkTagBar || click == ClkWinTitle ||
-                                   click == ClkCloseButton ||
-                                   click == ClkShutDown ||
-                                   click == ClkSideBar) &&
-                                          buttons[i].arg.i == 0
-                                      ? &arg
-                                      : &buttons[i].arg);
+                  buttons[i].func(( click == ClkTagBar 
+																 || click == ClkWinTitle
+                                 || click == ClkCloseButton
+                                 || click == ClkShutDown
+                                 || click == ClkSideBar) 
+																 && buttons[i].arg.i == 0
+																		? &arg
+																		: &buttons[i].arg);
 }
 
 void
@@ -898,12 +860,10 @@ cleanup(void)
 {
 	Arg a = {.ui = ~0};
 	Layout foo = { "", NULL };
-	Monitor *m;
-	size_t i;
 
 	view(&a);
 	selmon->lt[selmon->sellt] = &foo;
-	for (m = mons; m; m = m->next)
+	for (Monitor *m = mons; m; m = m->next)
 		while (m->stack)
 			unmanage(m->stack, 0);
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
@@ -914,9 +874,9 @@ cleanup(void)
 		XDestroyWindow(dpy, systray->win);
 		free(systray);
 	}
-	for (i = 0; i < CurLast; i++)
+	for (size_t i = 0; i < CurLast; ++i)
 		drw_cur_free(drw, cursor[i]);
-	for (i = 0; i < LENGTH(colors) + 1; i++)
+	for (size_t i = 0; i < LENGTH(colors) + 1; ++i)
 		free(scheme[i]);
 	XDestroyWindow(dpy, wmcheckwin);
 	drw_free(drw);
@@ -928,12 +888,11 @@ cleanup(void)
 void
 cleanupmon(Monitor *mon)
 {
-	Monitor *m;
-
 	if (mon == mons)
 		mons = mons->next;
 	else {
-		for (m = mons; m && m->next != mon; m = m->next);
+		Monitor *m = mons;
+		while(m && m->next != mon){ m = m->next; }
 		m->next = mon->next;
 	}
 	XUnmapWindow(dpy, mon->barwin);
@@ -948,7 +907,6 @@ clientmessage(XEvent *e)
 	XSetWindowAttributes swa;
 	XClientMessageEvent *cme = &e->xclient;
 	Client *c = wintoclient(cme->window);
-	unsigned int i;
 
 	if (showsystray && cme->window == systray->win && cme->message_type == netatom[NetSystemTrayOP]) {
 		/* add systray icons */
@@ -979,20 +937,20 @@ clientmessage(XEvent *e)
 			/* use parents background color */
 			swa.background_pixel  = scheme[SchemeNorm][ColBg].pixel;
 			XChangeWindowAttributes(dpy, c->win, CWBackPixel, &swa);
-                        sendevent(c->win, netatom[Xembed], StructureNotifyMask,
-                                  CurrentTime, XEMBED_EMBEDDED_NOTIFY, 0,
-                                  systray->win, XEMBED_EMBEDDED_VERSION);
-                        /* FIXME not sure if I have to send these events, too */
-                        sendevent(c->win, netatom[Xembed], StructureNotifyMask,
-                                  CurrentTime, XEMBED_FOCUS_IN, 0, systray->win,
-                                  XEMBED_EMBEDDED_VERSION);
-                        sendevent(c->win, netatom[Xembed], StructureNotifyMask,
-                                  CurrentTime, XEMBED_WINDOW_ACTIVATE, 0,
-                                  systray->win, XEMBED_EMBEDDED_VERSION);
-                        sendevent(c->win, netatom[Xembed], StructureNotifyMask,
-                                  CurrentTime, XEMBED_MODALITY_ON, 0,
-                                  systray->win, XEMBED_EMBEDDED_VERSION);
-                        XSync(dpy, False);
+			sendevent(c->win, netatom[Xembed], StructureNotifyMask,
+								CurrentTime, XEMBED_EMBEDDED_NOTIFY, 0,
+								systray->win, XEMBED_EMBEDDED_VERSION);
+			/* FIXME not sure if I have to send these events, too */
+			sendevent(c->win, netatom[Xembed], StructureNotifyMask,
+								CurrentTime, XEMBED_FOCUS_IN, 0, systray->win,
+								XEMBED_EMBEDDED_VERSION);
+			sendevent(c->win, netatom[Xembed], StructureNotifyMask,
+								CurrentTime, XEMBED_WINDOW_ACTIVATE, 0,
+								systray->win, XEMBED_EMBEDDED_VERSION);
+			sendevent(c->win, netatom[Xembed], StructureNotifyMask,
+								CurrentTime, XEMBED_MODALITY_ON, 0,
+								systray->win, XEMBED_EMBEDDED_VERSION);
+			XSync(dpy, False);
 			resizebarwin(selmon);
 			updatesystray();
 			setclientstate(c, NormalState);
@@ -1015,12 +973,13 @@ clientmessage(XEvent *e)
 			}
 			showoverlay();
 		} else if (c->tags == 1 << 20) {
-            selmon = c->mon;
-			togglescratchpad(NULL);
+				selmon = c->mon;
+				togglescratchpad(NULL);
 		} else {
 			if (HIDDEN(c))
 				show(c);
-			for (i = 0; i < LENGTH(tags) && !((1 << i) & c->tags); i++);
+			size_t i = 0;
+			while (i < LENGTH(tags) && !((1 << i) & c->tags)) {++i;}
 			if (i < LENGTH(tags)) {
 				const Arg a = {.ui = 1 << i};
 				if (selmon != c->mon) {
@@ -1032,7 +991,6 @@ clientmessage(XEvent *e)
 				restack(selmon);
 			}
 		}
-
 	}
 }
 
@@ -1058,10 +1016,7 @@ configure(Client *c)
 void
 configurenotify(XEvent *e)
 {
-	Monitor *m;
-	Client *c;
 	XConfigureEvent *ev = &e->xconfigure;
-
 	/* TODO: updategeom handling sucks, needs to be simplified */
 	if (ev->window == root) {
 		int dirty = (sw != ev->width || sh != ev->height);
@@ -1070,8 +1025,8 @@ configurenotify(XEvent *e)
 		if (updategeom() || dirty) {
 			drw_resize(drw, sw, bh);
 			updatebars();
-			for (m = mons; m; m = m->next) {
-				for (c = m->clients; c; c = c->next) {
+			for (Monitor * m = mons; m; m = m->next) {
+				for (Client *c = m->clients; c; c = c->next) {
 					if (c->isfakefullscreen)
 						XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
 					else if (c->isfullscreen)
@@ -1086,11 +1041,10 @@ configurenotify(XEvent *e)
 }
 
 void distributeclients(const Arg *arg) {
-	Client *c;
 	int tagcounter = 0;
 	focus(NULL);
 
-	for (c = selmon->clients; c; c = c->next) {
+	for (Client *c = selmon->clients; c; c = c->next) {
 		if (c == selmon->overlay)
 			continue;
 		if (tagcounter > 8) {
@@ -1108,16 +1062,14 @@ void distributeclients(const Arg *arg) {
 void
 configurerequest(XEvent *e)
 {
-	Client *c;
-	Monitor *m;
 	XConfigureRequestEvent *ev = &e->xconfigurerequest;
-	XWindowChanges wc;
+	Client *c = wintoclient(ev->window);
 
-	if ((c = wintoclient(ev->window))) {
+	if (c) {
 		if (ev->value_mask & CWBorderWidth)
 			c->bw = ev->border_width;
 		else if (c->isfloating || !selmon->lt[selmon->sellt]->arrange) {
-			m = c->mon;
+			Monitor *m = c->mon;
 			if (ev->value_mask & CWX) {
 				c->oldx = c->x;
 				c->x = m->mx + ev->x;
@@ -1145,6 +1097,7 @@ configurerequest(XEvent *e)
 		} else
 			configure(c);
 	} else {
+		XWindowChanges wc;
 		wc.x = ev->x;
 		wc.y = ev->y;
 		wc.width = ev->width;
@@ -1160,10 +1113,7 @@ configurerequest(XEvent *e)
 Monitor *
 createmon(void)
 {
-	Monitor *m;
-	unsigned int i;
-
-	m = ecalloc(1, sizeof(Monitor));
+	Monitor *m = ecalloc(1, sizeof(Monitor));
 	m->tagset[0] = m->tagset[1] = 1;
 	m->mfact = mfact;
 	m->nmaster = nmaster;
@@ -1178,7 +1128,7 @@ createmon(void)
 	m->pertag = ecalloc(1, sizeof(Pertag));
 	m->pertag->curtag = m->pertag->prevtag = 1;
 
-	for (i = 0; i <= LENGTH(tags); i++) {
+	for (size_t i = 0; i <= LENGTH(tags); i++) {
 		m->pertag->nmasters[i] = m->nmaster;
 		m->pertag->mfacts[i] = m->mfact;
 
@@ -1194,26 +1144,26 @@ createmon(void)
 
 void
 cyclelayout(const Arg *arg) {
-	Layout *l;
-	for(l = (Layout *)layouts; l != selmon->lt[selmon->sellt]; l++);
+	Layout *l = (Layout *)layouts;
+	while(l != selmon->lt[selmon->sellt]){++l;}
 	if(arg->i > 0) {
-        if(l->symbol && (l + 1)->symbol) {
-            if ((l + 1)->arrange == &overviewlayout)
-                setlayout(&((Arg) { .v = (l + 2) }));
-            else
-                setlayout(&((Arg) { .v = (l + 1) }));
-        } else {
+		if(l->symbol && (l + 1)->symbol) {
+				if ((l + 1)->arrange == &overviewlayout)
+					setlayout(&((Arg) { .v = (l + 2) }));
+				else
+					setlayout(&((Arg) { .v = (l + 1) }));
+		} else {
 			setlayout(&((Arg) { .v = layouts }));
-        }
+		}
 	} else {
-        if(l != layouts && (l - 1)->symbol) {
-            if ((l - 1)->arrange == &overviewlayout)
-			    setlayout(&((Arg) { .v = (l - 2) }));
-            else
-			    setlayout(&((Arg) { .v = (l - 1) }));
-        } else {
+			if(l != layouts && (l - 1)->symbol) {
+				if ((l - 1)->arrange == &overviewlayout)
+					setlayout(&((Arg) { .v = (l - 2) }));
+				else
+					setlayout(&((Arg) { .v = (l - 1) }));
+			} else {
 			setlayout(&((Arg) { .v = &layouts[LENGTH(layouts) - 2] }));
-        }
+		}
 	}
 }
 
@@ -1235,12 +1185,11 @@ destroynotify(XEvent *e)
 void
 detach(Client *c)
 {
-	Client **tc;
-
-	for (tc = &c->mon->clients; *tc && *tc != c; tc = &(*tc)->next);
+	Client **tc = &c->mon->clients;
+	while(*tc && *tc != c){tc = &(*tc)->next;};
 	*tc = c->next;
 }
-
+// TODO: Start from here
 void
 detachstack(Client *c)
 {
