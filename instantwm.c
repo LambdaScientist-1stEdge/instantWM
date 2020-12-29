@@ -100,7 +100,8 @@ int specialnext = 0;
 
 Client *animclient;
 
-int commandoffsets[20];
+enum { CmdOffsetMax = 20 };
+int commandoffsets[CmdOffsetMax];
 
 int forceresize = 0;
 Monitor *selmon;
@@ -1269,24 +1270,20 @@ dirtomon(int dir)
 	return m;
 }
 
-void clickstatus(const Arg *arg) {
-	int x, y, i;
+void 
+clickstatus(const Arg *arg) {
+	int x, y;
 	getrootptr(&x, &y);
-	i = 0;
-	while (1) {
-		if (i > 19 || (commandoffsets[i] == -1) || (commandoffsets[i] == 0))
-			break;
-		if (x - selmon->mx < commandoffsets[i])
-			break;
-		i++;
-	}
-	fprintf(stderr, "\ncounter: %d, x: %d, offset: %d", i, x - selmon->mx, commandoffsets[i]);
-
+	size_t i = 0;
+	while (i < CmdOffsetMax && (commandoffsets[i] != 0 || (x - selmon->mx >= commandoffsets[i]))) 		
+		++i; 
+	if(i == CmdOffsetMax) --i;
+	fprintf(stderr, "\ncounter: %zu, x: %d, offset: %d", i, x - selmon->mx, commandoffsets[i]);
 }
 
 int
 drawstatusbar(Monitor *m, int bh, char* stext) {
-	int ret, i, w, x, len, cmdcounter;
+	int ret, i, w, x, len;
 	short isCode = 0;
 	char *text;
 	char *p;
@@ -1332,8 +1329,8 @@ drawstatusbar(Monitor *m, int bh, char* stext) {
 
 	/* process status text */
 	i = -1;
-	cmdcounter = 0;
-
+	
+	size_t cmdOffsetCounter = 0;
 	while (text[++i]) {
 		if (text[i] == '^' && !isCode) {
 			isCode = 1;
@@ -1367,9 +1364,9 @@ drawstatusbar(Monitor *m, int bh, char* stext) {
 				} else if (text[i] == 'f') {
 					x += atoi(text + ++i);
 				} else if (text[i] == 'o') {
-					if (cmdcounter <= 20) {
-						commandoffsets[cmdcounter] = x;
-						cmdcounter++;
+					if (cmdOffsetCounter < CmdOffsetMax) {
+						commandoffsets[cmdOffsetCounter] = x;
+						++cmdOffsetCounter;
 					}
 				}
 			}
@@ -1378,20 +1375,6 @@ drawstatusbar(Monitor *m, int bh, char* stext) {
 			i=-1;
 			isCode = 0;
 		}
-	}
-
-	if (cmdcounter < 20) {
-		if (cmdcounter == 0)
-			commandoffsets[0] = -1;
-		else
-			commandoffsets[cmdcounter + 1] = -1;
-	}
-
-	cmdcounter = 0;
-	while (1) {
-		if (cmdcounter > 19 || (commandoffsets[cmdcounter] == -1) || (commandoffsets[cmdcounter] == 0))
-			break;
-		cmdcounter++;
 	}
 
 	if (!isCode) {
