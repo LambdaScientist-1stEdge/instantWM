@@ -409,17 +409,17 @@ showoverlay() {
 	if (c->islocked) {
 		switch (selmon->overlaymode) {
 		case 0:
-			resize(c, selmon->mx + 20, (selmon->showbar ? bh : 0) - c->h,
+			resize(c, selmon->mx + 20, selmon->my + (selmon->showbar ? bh : 0) - c->h,
 				selmon->ww - 40, c->h, True);
 			break;
 		case 1:
-			resize(c, selmon->mx + selmon->mw - 20, 40, c->w, selmon->mh - 80, True);
+			resize(c, selmon->mx + selmon->mw - 20, selmon->my + 40, c->w, selmon->mh - 80, True);
 			break;
 		case 2:
 			resize(c, selmon->mx + 20, selmon->my + selmon->mh, selmon->ww - 40, c->h, True);
 			break;
 		case 3:
-			resize(c, selmon->mx - c->w + 20, 40, c->w, selmon->mh - 80, True);
+			resize(c, selmon->mx - c->w + 20, selmon->my + 40, c->w, selmon->mh - 80, True);
 			break;
 		default:
 			selmon->overlaymode = 0;
@@ -436,23 +436,23 @@ showoverlay() {
 	if (c->islocked)
 	{
 		XRaiseWindow(dpy, c->win);
-		switch (selmon->overlaymode) {
-			case 0:
-				animateclient(c, c->x, ( selmon->showbar ? bh : 0 ), 0, 0, 15, 0);
-				break;
-			case 1:
-				animateclient(c, selmon->mx + selmon->mw - c->w, 40, 0, 0, 15, 0);
-				break;
-			case 2:
-				animateclient(c, selmon->mx + 20, selmon->my + selmon->mh - c->h, 0, 0, 15, 0);
-				break;
-			case 3:
-				animateclient(c, selmon->mx, 40, 0, 0, 15, 0);
-				break;
-			default:
-				selmon->overlaymode = 0;
-				break;
-		}
+        switch (selmon->overlaymode) {
+            case 0:
+			    animateclient(c, c->x, selmon->my + ( selmon->showbar ? bh : 0 ), 0, 0, 15, 0);
+                break;
+            case 1:
+                animateclient(c, selmon->mx + selmon->mw - c->w, selmon->my + 40, 0, 0, 15, 0);
+                break;
+            case 2:
+                animateclient(c, selmon->mx + 20, selmon->my + selmon->mh - c->h, 0, 0, 15, 0);
+                break;
+            case 3:
+                animateclient(c, selmon->mx, selmon->my + 40, 0, 0, 15, 0);
+                break;
+            default:
+                selmon->overlaymode = 0;
+                break;
+        }
 		c->issticky = 1;
 	}
 
@@ -4404,6 +4404,13 @@ togglebar(const Arg *arg)
 	arrange(selmon);
 	if (tmpnoanim)
 		animated = 1;
+    if (selmon->overlaystatus) {
+        tmpnoanim = animated;
+        animated = 0;
+        selmon->overlaystatus = 0;
+        showoverlay();
+        animated = tmpnoanim;
+    }
 }
 
 void
@@ -4506,6 +4513,8 @@ void togglescratchpad(const Arg *arg) {
             if (!scratchexists)
                 scratchexists = 1;
             c->issticky = selmon->scratchvisible;
+            if (c == selmon->fullscreen)
+                tempfullscreen();
             if (!c->isfloating)
                 c->isfloating = 1;
         }
